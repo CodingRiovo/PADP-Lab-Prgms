@@ -5,7 +5,6 @@
 #include <omp.h>
 
 #define SIZE 5
-#define FILE_NAME "words.txt"
 
 char *words[SIZE] = {"lorem", "ipsum", "dolo", "sit", "amet"};
 int counts[SIZE] = {0};
@@ -53,7 +52,7 @@ int main(int argc, char *argv[]) {
 
     #pragma omp parallel for
     for (int i = 0; i < SIZE; i++) {
-        counts[i] = get_count(FILE_NAME, words[i]);
+        counts[i] = get_count("words.txt", words[i]);
     }
 
     t = omp_get_wtime() - t;
