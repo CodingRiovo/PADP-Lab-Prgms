@@ -6,7 +6,7 @@
 
 #define SIZE 5
 
-char *words[SIZE] = {"lorem", "ipsum", "dolo", "sit", "amet"};
+char *words[SIZE] = {"lorem", "ipsum", "dolor", "sit", "amet"};
 int counts[SIZE] = {0};
 
 void to_lower(char *str) {
