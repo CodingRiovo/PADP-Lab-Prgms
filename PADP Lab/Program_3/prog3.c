@@ -2,61 +2,78 @@
 #include <stdlib.h>
 #include <omp.h>
 #include <math.h>
-#include <string.h>
 
-void mark_composites(int *composite, long start, long step, long limit)
+void mark_composites(int *composites, long start, long stop, long step)
 {
-    for (long i = start; i <= limit; i += step)
-        composite[i] = 1;
+    for (long i = start; i <= stop; i += step)
+    {
+        composites[i] = 1;
+    }
 }
 
-// Cache Unfriendly Sieve
-long sieve_unfriendly(long n)
+long unfriendly_sieve(long n)
 {
     long count = 0;
-    int *composite = calloc(n + 1, sizeof(int));
     long limit = sqrt(n);
-
+    int *composites = (int *)calloc(n + 1, sizeof(int));
     for (long i = 2; i <= limit; i++)
-        if (!composite[i])
-            mark_composites(composite, i * i, i, n);
-
+    {
+        if (!composites[i])
+        {
+            mark_composites(composites, i * i, n, i);
+        }
+    }
     for (long i = 2; i <= n; i++)
-        if (!composite[i])
+    {
+        if (!composites[i])
+        {
             count++;
-
-    free(composite);
+        }
+    }
+    free(composites);
     return count;
 }
 
-// Cache Friendly Sieve
-long sieve_friendly(long n)
+long friendly_sieve(long n)
 {
-    long limit = sqrt(n), count = 0;
-    int *small_comp = calloc(limit + 1, sizeof(int));
-
-    for (long i = 2; i * i <= limit; i++)
-        if (!small_comp[i])
-            mark_composites(small_comp, i * i, i, limit);
-
-    long *primes = malloc(limit * sizeof(long)), prime_count = 0;
-    for (long i = 2; i <= limit; i++)
-        if (!small_comp[i])
-            primes[prime_count++] = i, count++;
-
-    free(small_comp);
-
+    long limit = sqrt(n);
+    long count = 0;
+    int *small_comps = (int *)calloc(limit + 1, sizeof(int));
+    for (int i = 2; i * i <= limit; i++)
+    {
+        if (!small_comps[i])
+        {
+            mark_composites(small_comps, i * i, limit, i);
+        }
+    }
+    long *primes = (long *)malloc(limit * sizeof(long));
+    long prime_cnt = 0;
+    for (int i = 2; i <= limit; i++)
+    {
+        if (!small_comps[i])
+        {
+            primes[prime_cnt++] = i;
+            count++;
+        }
+    }
+    free(small_comps);
     for (long start = limit + 1; start <= n; start += limit)
     {
         long end = (start + limit - 1 < n) ? start + limit - 1 : n;
-        int *segment = calloc(limit, sizeof(int));
+        int *segment = (int *)calloc(limit, sizeof(int));
 
-        for (long i = 0; i < prime_count; i++)
+        for (long i = 0; i < prime_cnt; i++)
+        {
             mark_composites(segment, ((start + primes[i] - 1) / primes[i]) * primes[i] - start, primes[i], end - start);
+        }
 
-        for (long i = 0; i <= end - start; i++)
+        for (long i = 0; i < end - start; i++)
+        {
             if (!segment[i])
+            {
                 count++;
+            }
+        }
 
         free(segment);
     }
@@ -64,80 +81,76 @@ long sieve_friendly(long n)
     return count;
 }
 
-// Parallel Sieve
-long sieve_parallel(long n)
+long parallel_sieve(long n)
 {
-    long limit = sqrt(n), count = 0, n_factor = 0;
-    long *factor = malloc(limit * sizeof(long));
-    int *composite = calloc(limit + 1, sizeof(int));
-
-    for (long i = 2; i <= limit; i++)
-        if (!composite[i])
+    long limit = sqrt(n);
+    long count = 0;
+    int *small_comps = (int *)calloc(limit + 1, sizeof(int));
+    for (int i = 2; i * i <= limit; i++)
+    {
+        if (!small_comps[i])
         {
-            count++;
-            mark_composites(composite, i * i, i, limit);
-            factor[n_factor++] = i;
+            mark_composites(small_comps, i * i, limit, i);
         }
-
+    }
+    long *primes = (long *)malloc(limit * sizeof(long));
+    long prime_cnt = 0;
+    for (int i = 2; i <= limit; i++)
+    {
+        if (!small_comps[i])
+        {
+            primes[prime_cnt++] = i;
+            count++;
+        }
+    }
+    free(small_comps);
 #pragma omp parallel
     {
-        int *local_comp = calloc(limit + 1, sizeof(int));
-        long *marker = malloc(n_factor * sizeof(long));
-
-#pragma omp for reduction(+ : count)
+#pragma omp for
         for (long start = limit + 1; start <= n; start += limit)
         {
-            memset(local_comp, 0, (limit + 1) * sizeof(int));
             long end = (start + limit - 1 < n) ? start + limit - 1 : n;
+            int *segment = (int *)calloc(limit, sizeof(int));
+            long local_cnt = 0;
+            for (long i = 0; i < prime_cnt; i++)
+            {
+                mark_composites(segment, ((start + primes[i] - 1) / primes[i]) * primes[i] - start, primes[i], end - start);
+            }
 
-            for (long k = 0; k < n_factor; k++)
-                marker[k] = (start + factor[k] - 1) / factor[k] * factor[k] - start;
+            for (long i = 0; i < end - start; i++)
+            {
+                if (!segment[i])
+                {
+                    local_cnt++;
+                }
+            }
 
-            for (long k = 0; k < n_factor; k++)
-                mark_composites(local_comp, marker[k], factor[k], end - start);
-
-            for (long i = 0; i <= end - start; i++)
-                if (!local_comp[i])
-                    count++;
+            free(segment);
+#pragma omp atomic
+            count += local_cnt;
         }
-        free(local_comp);
-        free(marker);
     }
-
-    free(composite);
-    free(factor);
+    free(primes);
     return count;
 }
 
 int main()
 {
     long input[] = {1000000, 10000000, 100000000};
-
-    printf("\nSieve of Eratosthenes - Prime Number Counting\n");
-    printf("+---------------+-----------------+-----------------+-----------------+\n");
-    printf("|   Input Size  |  Unfriendly (s) |  Friendly (s)  |  Parallel (s)   |\n");
-    printf("+---------------+-----------------+-----------------+-----------------+\n");
-
+    double t1, t2, t3;
+    printf("Input Size|Unfriendly Sieve|Friendly Sieve|Parallel Sieve\n");
     for (int i = 0; i < 3; i++)
     {
-        long n = input[i];
-        double start, time1, time2, time3;
-
-        start = omp_get_wtime();
-        long res1 = sieve_unfriendly(n);
-        time1 = omp_get_wtime() - start;
-
-        start = omp_get_wtime();
-        long res2 = sieve_friendly(n);
-        time2 = omp_get_wtime() - start;
-
-        start = omp_get_wtime();
-        long res3 = sieve_parallel(n);
-        time3 = omp_get_wtime() - start;
-
-        printf("| %11ldM | %8.6f s  | %8.6f s  | %8.6f s  |\n", n / 1000000, time1, time2, time3);
+        t1 = omp_get_wtime();
+        unfriendly_sieve(input[i]);
+        t1 = omp_get_wtime() - t1;
+        t2 = omp_get_wtime();
+        friendly_sieve(input[i]);
+        t2 = omp_get_wtime() - t2;
+        t3 = omp_get_wtime();
+        parallel_sieve(input[i]);
+        t3 = omp_get_wtime() - t3;
+        printf("%dM\t%f\t%f\t%f\n", input[i] / 1000000, t1, t2, t3);
     }
-
-    printf("+---------------+-----------------+-----------------+-----------------+\n");
     return 0;
 }
