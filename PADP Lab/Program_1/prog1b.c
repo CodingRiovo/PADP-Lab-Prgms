@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <mpi.h>
 
-#define SEED 3655942
 #define ROOT 0
 
 int main(int argc, char *argv[]) {
@@ -12,16 +11,16 @@ int main(int argc, char *argv[]) {
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
+    int niter = 10000;
+    int count = 0, red_count;
     double t;
     if (rank == ROOT) {
         t = MPI_Wtime();
+        printf("Enter the number of iterations: ");
+        scanf("%d", &niter);
     }
 
-    int n = 10000; 
-    int count = 0, red_count;
-
-    srand(SEED + rank); 
-    for (int i = 0; i < n / size; i++) {
+    for (int i = 0; i < niter / size; i++) {
         double x = (double)rand() / RAND_MAX;
         double y = (double)rand() / RAND_MAX;
         double z = x * x + y * y;
@@ -35,9 +34,9 @@ int main(int argc, char *argv[]) {
         t = MPI_Wtime() - t;
         printf("Time: %f seconds\n", t);
 
-        double pi = (double)red_count / n * 4;
+        double pi = (double)red_count / niter * 4;
         printf("No. of threads: %d\n", size);
-        printf("No. of trials: %d\n", n);
+        printf("No. of trials: %d\n", niter);
         printf("Estimated value of pi: %f\n", pi);
     }
 

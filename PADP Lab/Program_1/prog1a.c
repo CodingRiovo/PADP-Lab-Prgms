@@ -1,9 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
-#include <math.h>
-#include <string.h>
 #include <omp.h>
-#define SEED 35791246
 
 int main(int argc, char *argv[])
 {
@@ -27,7 +24,6 @@ int main(int argc, char *argv[])
 #pragma omp parallel
         {
             int local_count = 0;
-            unsigned int seed = SEED + omp_get_thread_num();
 #pragma omp for
             for (int i = 0; i < niter; i++)
             {
