@@ -26,20 +26,17 @@ int main(int argc, char *argv[])
 
 #pragma omp parallel
         {
-            int local_count = 0;
             unsigned int seed = SEED + omp_get_thread_num(); // Unique seed per thread
 
-#pragma omp for
+#pragma omp for reduction(+:count)
             for (int i = 0; i < niter; i++)
             {
                 double x = (double)rand_r(&seed) / RAND_MAX;
                 double y = (double)rand_r(&seed) / RAND_MAX;
                 if (x * x + y * y <= 1)
-                    local_count++;
+                    count++;
             }
 
-#pragma omp atomic
-            count += local_count;
         }
 
         pi = (double)count / niter * 4;
