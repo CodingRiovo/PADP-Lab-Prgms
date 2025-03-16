@@ -1,0 +1,9 @@
+{
+    "files.associations": {
+        "time.h": "c",
+        "omp.h": "c",
+        "stdio.h": "c",
+        "stdlib.h": "c",
+        "atomic": "c"
+    }
+}
